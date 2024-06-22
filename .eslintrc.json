@@ -1,3 +1,13 @@
 {
-  "extends": "next/core-web-vitals"
+	"extends": "next/core-web-vitals",
+	"rules": {
+		"no-console": "warn", // Warns on console.log statements
+		"no-unused-vars": "error", // Warns on variables that are declared but not used
+		"no-var": "error", // Enforces the use of let/const instead of var
+		"prefer-const": "error", // Suggests using const if variables are not reassigned
+		"eqeqeq": ["error", "always"], // Requires the use of === and !==
+		"curly": ["error", "all"], // Enforces consistent use of curly braces for all control statements
+		"no-else-return": "error", // Disallows else block after return in if
+		"no-empty": ["error", { "allowEmptyCatch": true }] // Disallows empty block statements, allows empty catch blocks
+	}
 }
