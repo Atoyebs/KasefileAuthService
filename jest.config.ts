@@ -155,7 +155,7 @@ const config: Config = {
 	// testLocationInResults: false,
 
 	// The glob patterns Jest uses to detect test files
-	testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[tj]s?(x)']
+	testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[tj]s?(x)'],
 
 	// An array of regexp pattern strings that are matched against all test paths, matched tests are skipped
 	// testPathIgnorePatterns: [
@@ -172,7 +172,14 @@ const config: Config = {
 	// testRunner: "jest-circus/runner",
 
 	// A map from regular expressions to paths to transformers
-	// transform: undefined,
+	transform: {
+		'^.+\\.[tj]sx?$': 'ts-jest'
+	},
+
+	// Optional: If you use other files like CSS or images, you might need to ignore those
+	moduleNameMapper: {
+		'\\.(css|less|scss|sass)$': 'identity-obj-proxy'
+	}
 
 	// An array of regexp pattern strings that are matched against all source file paths, matched files will skip transformation
 	// transformIgnorePatterns: [
