@@ -1,7 +1,7 @@
 import '@/app/utility/zod-extensions';
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { signupSchema } from './validation';
+import { signupReqBodySchema } from './validation';
 import bcrypt from 'bcrypt';
 import Database from '@/app/db';
 import { lucia } from '@/app/auth/setup';
@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
 
 	try {
 		//parse the body of the request
-		const { data, success, error } = signupSchema.safeParseV2(await req.json());
+		const { data, success, error } = signupReqBodySchema.safeParseV2(
+			await req.json()
+		);
 
 		if (!success) {
 			return Response.json({ success, message: error }, { status: 400 });

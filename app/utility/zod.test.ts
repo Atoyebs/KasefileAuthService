@@ -1,5 +1,5 @@
 import './zod-extensions';
-import { signupSchema } from '../api/auth/signup/validation';
+import { signupReqBodySchema } from '../api/auth/signup/validation';
 
 describe('Zod tests', () => {
 	const baseData = {
@@ -11,14 +11,14 @@ describe('Zod tests', () => {
 	};
 
 	test('safeParseV2 schema parse should pass validation with no errors', () => {
-		const result = signupSchema.safeParseV2(baseData);
+		const result = signupReqBodySchema.safeParseV2(baseData);
 		expect(result).toHaveProperty('success', true);
 		expect(result).toHaveProperty('error', null);
 		expect(result).toHaveProperty('data', baseData);
 	});
 
 	test('safeParseV2 schema parse should fail username validation with single string error', () => {
-		const result = signupSchema.safeParseV2({
+		const result = signupReqBodySchema.safeParseV2({
 			...baseData,
 			username: 'te'
 		});
@@ -31,7 +31,7 @@ describe('Zod tests', () => {
 	});
 
 	test('safeParseV2 schema parse should fail email validation with single string error', () => {
-		const result = signupSchema.safeParseV2({
+		const result = signupReqBodySchema.safeParseV2({
 			...baseData,
 			email: 'info@testemail'
 		});

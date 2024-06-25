@@ -1,5 +1,8 @@
-export async function GET() {
-	return Response.json(
+import { NextResponse } from 'next/server';
+
+// eslint-disable-next-line no-unused-vars
+export async function handler() {
+	return NextResponse.json(
 		{
 			success: true,
 			message: "You've hit the auth route!"
@@ -7,3 +10,5 @@ export async function GET() {
 		{ status: 200 }
 	);
 }
+
+export { handler as GET, handler as POST };
