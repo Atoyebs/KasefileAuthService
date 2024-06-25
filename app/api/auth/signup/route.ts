@@ -22,14 +22,16 @@ export async function POST(req: NextRequest) {
 		const { username, email, password, firstname, lastname } = data!;
 
 		//query the user table in the database via email
-		const db = await (await Database.getInstance()).getClient();
+		const db = new Database();
+		const pool = await db.connect();
+
 		const findUserQuery = {
 			text: 'SELECT * FROM "user" WHERE email = $1',
 			values: [email]
 		};
 
 		const existingFoundUserCount =
-			(await db.query(findUserQuery))?.rowCount || 1;
+			(await pool.query(findUserQuery))?.rowCount || 1;
 
 		if (existingFoundUserCount > 0) {
 			return Response.json(
@@ -45,7 +47,7 @@ export async function POST(req: NextRequest) {
 			values: [firstname, lastname, email, username, hashedPassword]
 		};
 
-		const user = (await db.query(createUserInsert)).rows[0];
+		const user = (await pool.query(createUserInsert)).rows[0];
 
 		delete user.password;
 		delete user.created_at;
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest) {
 			sessionCookie.attributes
 		);
 
-		await db.end();
+		await pool.release();
 
 		return Response.json(
 			{

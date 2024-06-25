@@ -32,8 +32,10 @@ export async function POST(req: NextRequest) {
 		};
 
 		//open a database connection
-		const db = await (await Database.getInstance()).getClient();
-		user = (await db.query(findUserFromUsernameOrEmailQuery)).rows[0];
+		const db = new Database();
+		const pool = await db.connect();
+
+		user = (await pool.query(findUserFromUsernameOrEmailQuery)).rows[0];
 		const hashedPassword = user?.password || '';
 
 		/*
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
 			);
 		}
 		//close the database connection
-		await db.end();
+		await pool.release();
 
 		// if the passwords do match; create a new session with the user data
 		const session = await lucia.createSession(user.id, {});

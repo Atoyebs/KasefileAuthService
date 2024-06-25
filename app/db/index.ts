@@ -1,41 +1,40 @@
-import { Client } from 'pg';
+import { ClientConfig, Pool } from 'pg';
+import _ from 'lodash';
 
 class Database {
-	private static instance: Database;
-	private client?: Client;
+	private pool: Pool;
+	private config: ClientConfig;
 
-	private constructor() {}
+	constructor(config?: ClientConfig) {
+		if (_.isEmpty(config)) {
+			this.config = {
+				user: process.env.NEXT_SERVER_DB_USER,
+				password: process.env.NEXT_SERVER_DB_PASS,
+				host: process.env.NEXT_SERVER_DB_HOST,
+				port: Number(process.env.NEXT_SERVER_DB_PORT),
+				database: process.env.NEXT_SERVER_DB_NAME
+			};
 
-	public static async getInstance(): Promise<Database> {
-		if (!Database.instance) {
-			Database.instance = new Database();
-			await Database.instance.connect();
+			this.pool = new Pool(this.config);
+		} else {
+			this.config = config;
+			this.pool = new Pool(config);
 		}
-		return Database.instance;
 	}
 
-	private async connect() {
+	private getPgPool() {
+		if (!this.pool) {
+			return new Pool(this.config);
+		}
+		return this.pool;
+	}
+
+	async connect() {
 		try {
-			this.client = new Client({
-				connectionString: process.env.NEXT_SERVER_DB_URL
-			});
-			await this.client.connect();
+			const aPool = this.getPgPool();
+			return await aPool.connect();
 		} catch (error) {
 			throw error;
-		}
-	}
-
-	public async getClient(): Promise<Client> {
-		if (!this.client) {
-			await this.connect();
-		}
-		return this.client!;
-	}
-
-	public async close() {
-		if (this.client) {
-			await this.client.end();
-			delete this.client;
 		}
 	}
 }
