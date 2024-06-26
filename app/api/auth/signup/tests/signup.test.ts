@@ -1,73 +1,45 @@
-import {
-	PostgreSqlContainer,
-	StartedPostgreSqlContainer
-} from '@testcontainers/postgresql';
-import { GenericContainer, Network } from 'testcontainers';
-import cwd from 'cwd';
 import { doesDatabaseTableExist } from '../../../../testing/containers/database/utility';
 import Database from '../../../../db';
 import dotenv from 'dotenv';
+import { signupReqBodySchema } from '../validation';
+import PostgresContainer, {
+	StartedPGContainer
+} from '@/app/testing/containers/models/postgres-container';
+import HasuraContainer, {
+	StartedHasuraContainer
+} from '@/app/testing/containers/models/hasura-container';
+import { Network, Wait } from 'testcontainers';
 dotenv.config();
 
+// type SignupBody = z.infer<typeof signupReqBodySchema>;
+
 describe('Signup API', () => {
-	const port = parseInt(`${process.env.NEXT_SERVER_DB_PORT!}`);
-	const user = process.env.NEXT_SERVER_DB_USER!;
-	const pass = process.env.NEXT_SERVER_DB_PASS!;
-	const name = process.env.NEXT_SERVER_DB_NAME!;
-
-	const volumesDirRelative = `${cwd()}/app/testing/containers/volumes`;
-
 	let network;
-	let postgresContainer: StartedPostgreSqlContainer;
-	// eslint-disable-next-line no-unused-vars
-	let hasuraContainer;
+	let postgresContainer: StartedPGContainer;
+	let hasuraContainer: StartedHasuraContainer;
 
 	beforeAll(async () => {
 		network = await new Network().start();
-		postgresContainer = await new PostgreSqlContainer()
-			.withUsername(user)
-			.withPassword(pass)
-			.withDatabase(name)
-			.withExposedPorts({ container: 5432, host: port })
-			.withName('pg')
-			.withNetwork(network)
-			.withNetworkAliases('pg')
-			.start();
 
-		const internalUri = postgresContainer
-			.getConnectionUri()
-			.replace(/localhost/g, 'pg');
+		const pgContainer = await new PostgresContainer().configure(network);
+		postgresContainer = await pgContainer.withStartupTimeout(15000).start();
 
-		hasuraContainer = await new GenericContainer(
-			'hasura/graphql-engine:v2.40.1.cli-migrations-v3'
-		)
-			.withNetwork(network)
-			.withCopyDirectoriesToContainer([
-				{
-					source: `${volumesDirRelative}/hasura/metadata`,
-					target: '/hasura-metadata'
-				},
-				{
-					source: `${volumesDirRelative}/hasura/migrations`,
-					target: '/hasura-migrations'
-				}
-			])
-			.withName('hasura-test')
-			.withExposedPorts({ container: 8080, host: 8080 })
+		// await postgresContainer.stop({ remove: false });
+
+		hasuraContainer = await new HasuraContainer()
+			.configure(network, { container: 8080, host: 8080 })
 			.withEnvironment({
-				HASURA_GRAPHQL_DATABASE_URL: internalUri,
+				HASURA_GRAPHQL_DATABASE_URL: postgresContainer.internalNetworkDbUri,
 				HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
 			})
-			.withStartupTimeout(8000)
+			.withStartupTimeout(20000)
 			.start();
 
-		expect(postgresContainer.getDatabase()).toEqual(
-			process.env.NEXT_SERVER_DB_NAME
-		);
-		expect(postgresContainer.getUsername()).toEqual(
-			process.env.NEXT_SERVER_DB_USER
-		);
-	}, 30000);
+		// await hasuraContainer.stop({ remove: false });
+
+		expect(postgresContainer.getDatabase()).toEqual(process.env.NEXT_SERVER_DB_NAME);
+		expect(postgresContainer.getUsername()).toEqual(process.env.NEXT_SERVER_DB_USER);
+	}, 65000);
 
 	describe('Database table existence checks', () => {
 		it('figure table should NOT exist', async () => {
@@ -93,4 +65,9 @@ describe('Signup API', () => {
 			expect(doesExist).toBe(true);
 		});
 	});
+
+	// afterAll(async () => {
+	// 	await hasuraContainer.stop();
+	// 	await postgresContainer.stop();
+	// });
 });
