@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // eslint-disable-next-line no-unused-vars
-export async function handler() {
+async function handler() {
 	return NextResponse.json(
 		{
 			success: true,

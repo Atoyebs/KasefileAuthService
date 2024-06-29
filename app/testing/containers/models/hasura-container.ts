@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import dotenv from 'dotenv';
 import cwd from 'cwd';
 import {
@@ -31,7 +30,6 @@ export default class HasuraContainer extends GenericContainer {
 
 		if (shouldMigrate) {
 			// eslint-disable-next-line no-console
-			console.log(`\n\nAbout to run migrations found in volumes dir: ${this.volumesDirectory}\n\n`);
 
 			returnedThis.withCopyDirectoriesToContainer([
 				{

@@ -1,8 +1,5 @@
 import Database from '@/app/db';
-import {
-	PostgreSqlContainer,
-	StartedPostgreSqlContainer
-} from '@testcontainers/postgresql';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { StartedNetwork } from 'testcontainers';
 
 /**
@@ -16,18 +13,22 @@ export async function doesDatabaseTableExist(
 	database: Database,
 	tableName: string
 ): Promise<boolean> {
-	const pool = await database.connect();
-	const result = await pool.query(
-		`SELECT EXISTS (
+	try {
+		const pool = await database.connect();
+		const result = await pool.query(
+			`SELECT EXISTS (
       SELECT 1
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
       AND table_name = '${tableName}'
     );`
-	);
+		);
 
-	await pool.release();
-	return result.rows[0].exists;
+		await pool.release();
+		return result.rows[0].exists;
+	} catch (error) {
+		throw error;
+	}
 }
 
 /**
@@ -59,20 +60,17 @@ export async function createaAndStartPostgresContainer({
 }> {
 	const alias = 'pg';
 
-	const postgresContainer: StartedPostgreSqlContainer =
-		await new PostgreSqlContainer()
-			.withUsername(user)
-			.withPassword(pass)
-			.withDatabase(name)
-			.withExposedPorts({ container: 5432, host: port })
-			.withName(alias)
-			.withNetwork(network)
-			.withNetworkAliases(alias)
-			.start();
+	const postgresContainer: StartedPostgreSqlContainer = await new PostgreSqlContainer()
+		.withUsername(user)
+		.withPassword(pass)
+		.withDatabase(name)
+		.withExposedPorts({ container: 5432, host: port })
+		.withName(alias)
+		.withNetwork(network)
+		.withNetworkAliases(alias)
+		.start();
 
-	const internalUri = postgresContainer
-		.getConnectionUri()
-		.replace(/localhost/g, alias);
+	const internalUri = postgresContainer.getConnectionUri().replace(/localhost/g, alias);
 
 	return {
 		pgContainer: postgresContainer,

@@ -2,18 +2,20 @@ import '@/app/utility/zod-extensions';
 import { NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { signupReqBodySchema } from './validation';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import Database from '@/app/db';
 import { lucia } from '@/app/auth/setup';
 
 export async function POST(req: NextRequest) {
-	const saltRounds = 10;
-
 	try {
+		const saltRounds = bcrypt.genSaltSync(10);
+		const body = await req.json();
 		//parse the body of the request
-		const { data, success, error } = signupReqBodySchema.safeParseV2(
-			await req.json()
-		);
+		const { data, success, error } = signupReqBodySchema.safeParseV2(body);
+
+		console.log('body == ', body);
+		console.log('success == ', success);
+		console.log('error == ', error);
 
 		if (!success) {
 			return Response.json({ success, message: error }, { status: 400 });
@@ -30,8 +32,7 @@ export async function POST(req: NextRequest) {
 			values: [email]
 		};
 
-		const existingFoundUserCount =
-			(await pool.query(findUserQuery))?.rowCount || 1;
+		const existingFoundUserCount = (await pool.query(findUserQuery))?.rowCount || 1;
 
 		if (existingFoundUserCount > 0) {
 			return Response.json(
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
 			);
 		}
 
-		const hashedPassword = await bcrypt.hash(password, saltRounds);
+		const hashedPassword = await bcrypt.hashSync(password, saltRounds);
 
 		const createUserInsert = {
 			text: 'INSERT INTO "user"(firstname, lastname, email, username, password) VALUES($1, $2, $3, $4, $5) RETURNING *',
@@ -55,11 +56,7 @@ export async function POST(req: NextRequest) {
 		const session = await lucia.createSession(user.id, {});
 
 		const sessionCookie = await lucia.createSessionCookie(session.id);
-		cookies().set(
-			sessionCookie.name,
-			sessionCookie.value,
-			sessionCookie.attributes
-		);
+		cookies().set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		await pool.release();
 
@@ -72,6 +69,7 @@ export async function POST(req: NextRequest) {
 			{ status: 200 }
 		);
 	} catch (error) {
+		console.error(`error happened in signup route ==> `, error);
 		return Response.json(
 			{
 				success: false,

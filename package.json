@@ -4,15 +4,17 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev --port 3001",
+		"docker:test": "docker compose -f docker-compose.test.yml up -d",
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
-		"test": "jest",
+		"test": "jest --verbose",
 		"prepare": "husky"
 	},
 	"dependencies": {
 		"@lucia-auth/adapter-postgresql": "^3.1.2",
-		"bcrypt": "^5.1.1",
+		"axios": "^1.7.2",
+		"bcryptjs": "^2.4.3",
 		"dotenv": "^16.4.5",
 		"lodash": "^4.17.21",
 		"lucia": "^3.2.0",
@@ -26,7 +28,7 @@
 	"devDependencies": {
 		"@ngneat/falso": "^7.2.0",
 		"@testcontainers/postgresql": "^10.10.0",
-		"@types/bcrypt": "^5.0.2",
+		"@types/bcryptjs": "^2.4.6",
 		"@types/cwd": "^0.10.2",
 		"@types/jest": "^29.5.12",
 		"@types/lodash": "^4.17.5",
