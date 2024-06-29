@@ -112,9 +112,8 @@ describe('Signup API', () => {
 		}, 15000);
 
 		it('signup route should return 400 error when username fails validation', async () => {
-			const testAuthRoute = `${baseUrl}/api/auth/signup`;
 			try {
-				const { data } = await axios.post(`${testAuthRoute}`, {
+				await axios.post(`${baseUrl}/api/auth/signup`, {
 					...signupPostBody,
 					username: 'te'
 				});
@@ -123,6 +122,21 @@ describe('Signup API', () => {
 				expect(error?.response?.data).toEqual({
 					success: false,
 					message: 'username: String must contain at least 3 character(s)'
+				});
+			}
+		}, 15000);
+
+		it('signup route should return 400 error when email fails validation', async () => {
+			try {
+				await axios.post(`${baseUrl}/api/auth/signup`, {
+					...signupPostBody,
+					email: 'incorrect-email.com'
+				});
+			} catch (error: any) {
+				expect(error?.response?.status).toEqual(400);
+				expect(error?.response?.data).toEqual({
+					success: false,
+					message: 'email: Invalid email'
 				});
 			}
 		}, 15000);
