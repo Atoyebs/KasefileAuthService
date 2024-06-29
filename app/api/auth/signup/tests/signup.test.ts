@@ -48,6 +48,7 @@ describe('Signup API', () => {
 			.configure(network, { container: 8080, host: 8080 })
 			.withEnvironment({
 				HASURA_GRAPHQL_DATABASE_URL: postgresContainer.internalNetworkDbUri,
+				HASURA_GRAPHQL_ENABLE_CONSOLE: 'true',
 				HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
 			})
 			.start();
@@ -55,7 +56,7 @@ describe('Signup API', () => {
 		apiContainer = await new APIContainer()
 			.configure(network, { container: 3000, host: 3000 })
 			.start();
-	}, 90000);
+	}, 97000);
 
 	describe('Database table existence checks', () => {
 		it('figure table should NOT exist', async () => {
@@ -88,7 +89,7 @@ describe('Signup API', () => {
 
 		const signupPostBody = {
 			username: 'iTest',
-			email: 'test@hotmail.com',
+			email: 'test.user@hotmail.com',
 			password: 'testing123',
 			firstname: 'Test',
 			lastname: 'User'
@@ -140,5 +141,38 @@ describe('Signup API', () => {
 				});
 			}
 		}, 15000);
+
+		it('signup route should successfully register user', async () => {
+			const { data, status, headers } = await axios.post(
+				`${baseUrl}/api/auth/signup`,
+				signupPostBody
+			);
+			expect(data.success).toBeTruthy();
+			expect(data.message).toBe(
+				`User ${signupPostBody.firstname} ${signupPostBody.lastname} has been Successfully Signed Up!`
+			);
+			expect(status).toBe(200);
+			const setCookieHeader = headers['set-cookie'];
+			expect(setCookieHeader).toBeDefined();
+		}, 10000);
+
+		it('signed up user should be found within database user table', async () => {
+			const db = new Database({
+				connectionString: postgresContainer.getConnectionUri()
+			});
+			const findUserFromUsernameOrEmailQuery = {
+				text: `SELECT * FROM "user" WHERE username = $1 OR email = $1 LIMIT 1;`,
+				values: [signupPostBody.email]
+			};
+			const pool = await db.connect();
+
+			const user = (await pool.query(findUserFromUsernameOrEmailQuery))?.rows[0];
+			await pool.release();
+			expect(user?.username).toBe(signupPostBody.username);
+			expect(user?.email).toBe(signupPostBody.email);
+			expect(user?.firstname).toBe(signupPostBody.firstname);
+			expect(user?.lastname).toBe(signupPostBody.lastname);
+			expect(user?.id).toBeDefined();
+		}, 10000);
 	});
 });

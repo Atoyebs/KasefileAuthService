@@ -1,10 +1,9 @@
 import { Lucia, TimeSpan } from 'lucia';
 import { NodePostgresAdapter } from '@lucia-auth/adapter-postgresql';
-import pg from 'pg';
+import Database from '../db';
 
-const pool = new pg.Pool({
-	connectionString: process.env.NEXT_SERVER_DB_URL
-});
+const db = new Database();
+const pool = db.getPgPool();
 
 const pgAdapter = new NodePostgresAdapter(pool, {
 	user: 'user',

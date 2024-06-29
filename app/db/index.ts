@@ -28,7 +28,7 @@ class Database {
 		}
 	}
 
-	private getPgPool() {
+	public getPgPool() {
 		if (!this.pool) {
 			return new Pool(this.config);
 		}

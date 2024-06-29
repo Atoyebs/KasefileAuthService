@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
 	try {
 		const findUserFromUsernameOrEmailQuery = {
-			text: `SELECT * FROM users WHERE username = $1 OR email = $1 LIMIT 1;`,
+			text: `SELECT * FROM user WHERE username = $1 OR email = $1 LIMIT 1;`,
 			values: [usernameOrEmailAddress]
 		};
 

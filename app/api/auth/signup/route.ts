@@ -5,17 +5,14 @@ import { signupReqBodySchema } from './validation';
 import bcrypt from 'bcryptjs';
 import Database from '@/app/db';
 import { lucia } from '@/app/auth/setup';
+import { isEmptyValue } from '@/app/utility';
 
 export async function POST(req: NextRequest) {
 	try {
-		const saltRounds = bcrypt.genSaltSync(10);
 		const body = await req.json();
-		//parse the body of the request
-		const { data, success, error } = signupReqBodySchema.safeParseV2(body);
 
-		console.log('body == ', body);
-		console.log('success == ', success);
-		console.log('error == ', error);
+		//parse the body of the request and check if validation is successful or not
+		const { data, success, error } = signupReqBodySchema.safeParseV2(body);
 
 		if (!success) {
 			return Response.json({ success, message: error }, { status: 400 });
@@ -31,8 +28,9 @@ export async function POST(req: NextRequest) {
 			text: 'SELECT * FROM "user" WHERE email = $1',
 			values: [email]
 		};
+		const count = (await pool.query(findUserQuery))?.rowCount;
 
-		const existingFoundUserCount = (await pool.query(findUserQuery))?.rowCount || 1;
+		const existingFoundUserCount = isEmptyValue(count) ? 0 : (count as number);
 
 		if (existingFoundUserCount > 0) {
 			return Response.json(
@@ -40,15 +38,13 @@ export async function POST(req: NextRequest) {
 				{ status: 400 }
 			);
 		}
-
-		const hashedPassword = await bcrypt.hashSync(password, saltRounds);
+		const hashedPassword = await bcrypt.hashSync(password, 10);
 
 		const createUserInsert = {
 			text: 'INSERT INTO "user"(firstname, lastname, email, username, password) VALUES($1, $2, $3, $4, $5) RETURNING *',
 			values: [firstname, lastname, email, username, hashedPassword]
 		};
-
-		const user = (await pool.query(createUserInsert)).rows[0];
+		const user = (await pool.query(createUserInsert))?.rows[0];
 
 		delete user.password;
 		delete user.created_at;
@@ -59,7 +55,6 @@ export async function POST(req: NextRequest) {
 		cookies().set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 		await pool.release();
-
 		return Response.json(
 			{
 				success: true,
