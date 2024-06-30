@@ -32,6 +32,7 @@ describe('Auth APIs', () => {
 	let network: StartedNetwork;
 	let postgresContainer: StartedPGContainer;
 	let apiContainer: StartedAPIContainer;
+	let apiBaseUrl: string;
 
 	beforeAll(async () => {
 		/*
@@ -48,6 +49,8 @@ describe('Auth APIs', () => {
 		apiContainer = await new APIContainer()
 			.configure(network, { container: 3000, host: 3000 })
 			.start();
+
+		apiBaseUrl = `http://${apiContainer.getHost()}:${apiContainer.getFirstMappedPort()}`;
 	}, 70000);
 
 	describe('Database table existence checks', () => {
@@ -77,96 +80,88 @@ describe('Auth APIs', () => {
 	});
 
 	describe('Signup endpoint', () => {
-		describe('API endpoint tests', () => {
-			let baseUrl: string;
+		const signupPostBody = {
+			username: 'iTest',
+			email: 'test.user@hotmail.com',
+			password: 'testing123',
+			firstname: 'Test',
+			lastname: 'User'
+		};
 
-			const signupPostBody = {
-				username: 'iTest',
-				email: 'test.user@hotmail.com',
-				password: 'testing123',
-				firstname: 'Test',
-				lastname: 'User'
-			};
-
-			beforeAll(async () => {
-				baseUrl = `http://${apiContainer.getHost()}:${apiContainer.getFirstMappedPort()}`;
-			});
-
-			it('test route should return true with simple message', async () => {
-				const testAuthRoute = `${baseUrl}/api/auth`;
-				try {
-					const { data } = await axios.post(`${testAuthRoute}`);
-					expect(data).toEqual({
-						success: true,
-						message: "You've hit the auth route!"
-					});
-				} catch (error) {
-					throw error;
-				}
-			}, 15000);
-
-			it('signup route should return 400 error when username fails validation', async () => {
-				try {
-					await axios.post(`${baseUrl}/api/auth/signup`, {
-						...signupPostBody,
-						username: 'te'
-					});
-				} catch (error: any) {
-					expect(error?.response?.status).toEqual(400);
-					expect(error?.response?.data).toEqual({
-						success: false,
-						message: 'username: String must contain at least 3 character(s)'
-					});
-				}
-			}, 15000);
-
-			it('signup route should return 400 error when email fails validation', async () => {
-				try {
-					await axios.post(`${baseUrl}/api/auth/signup`, {
-						...signupPostBody,
-						email: 'incorrect-email.com'
-					});
-				} catch (error: any) {
-					expect(error?.response?.status).toEqual(400);
-					expect(error?.response?.data).toEqual({
-						success: false,
-						message: 'email: Invalid email'
-					});
-				}
-			}, 15000);
-
-			it('signup route should successfully register user', async () => {
-				const { data, status, headers } = await axios.post(
-					`${baseUrl}/api/auth/signup`,
-					signupPostBody
-				);
-				expect(data.success).toBeTruthy();
-				expect(data.message).toBe(
-					`User ${signupPostBody.firstname} ${signupPostBody.lastname} has been Successfully Signed Up!`
-				);
-				expect(status).toBe(200);
-				const setCookieHeader = headers['set-cookie'];
-				expect(setCookieHeader).toBeDefined();
-			}, 10000);
-
-			it('signed up user should be found within database user table', async () => {
-				const db = new Database({
-					connectionString: postgresContainer.getConnectionUri()
+		it('route should return true with simple message', async () => {
+			const testAuthRoute = `${apiBaseUrl}/api/auth`;
+			try {
+				const { data } = await axios.post(`${testAuthRoute}`);
+				expect(data).toEqual({
+					success: true,
+					message: "You've hit the auth route!"
 				});
-				const findUserFromUsernameOrEmailQuery = {
-					text: `SELECT * FROM "user" WHERE username = $1 OR email = $1 LIMIT 1;`,
-					values: [signupPostBody.email]
-				};
-				const pool = await db.connect();
+			} catch (error) {
+				throw error;
+			}
+		}, 15000);
 
-				const user = (await pool.query(findUserFromUsernameOrEmailQuery))?.rows[0];
-				await pool.release();
-				expect(user?.username).toBe(signupPostBody.username);
-				expect(user?.email).toBe(signupPostBody.email);
-				expect(user?.firstname).toBe(signupPostBody.firstname);
-				expect(user?.lastname).toBe(signupPostBody.lastname);
-				expect(user?.id).toBeDefined();
-			}, 10000);
-		});
+		it('route should return 400 error when username fails validation', async () => {
+			try {
+				await axios.post(`${apiBaseUrl}/api/auth/signup`, {
+					...signupPostBody,
+					username: 'te'
+				});
+			} catch (error: any) {
+				expect(error?.response?.status).toEqual(400);
+				expect(error?.response?.data).toEqual({
+					success: false,
+					message: 'username: String must contain at least 3 character(s)'
+				});
+			}
+		}, 15000);
+
+		it('route should return 400 error when email fails validation', async () => {
+			try {
+				await axios.post(`${apiBaseUrl}/api/auth/signup`, {
+					...signupPostBody,
+					email: 'incorrect-email.com'
+				});
+			} catch (error: any) {
+				expect(error?.response?.status).toEqual(400);
+				expect(error?.response?.data).toEqual({
+					success: false,
+					message: 'email: Invalid email'
+				});
+			}
+		}, 15000);
+
+		it('route should successfully register user', async () => {
+			const { data, status, headers } = await axios.post(
+				`${apiBaseUrl}/api/auth/signup`,
+				signupPostBody
+			);
+			expect(data.success).toBeTruthy();
+			expect(data.message).toBe(
+				`User ${signupPostBody.firstname} ${signupPostBody.lastname} has been Successfully Signed Up!`
+			);
+			expect(status).toBe(200);
+			const setCookieHeader = headers['set-cookie'];
+			expect(setCookieHeader).toBeDefined();
+		}, 10000);
+
+		it('signed up user should be found within database user table', async () => {
+			const db = new Database({
+				connectionString: postgresContainer.getConnectionUri()
+			});
+			const findUserFromUsernameOrEmailQuery = {
+				text: `SELECT * FROM "user" WHERE username = $1 OR email = $1 LIMIT 1;`,
+				values: [signupPostBody.email]
+			};
+			const pool = await db.connect();
+
+			const user = (await pool.query(findUserFromUsernameOrEmailQuery))?.rows[0];
+			await pool.release();
+			expect(user?.username).toBe(signupPostBody.username);
+			expect(user?.email).toBe(signupPostBody.email);
+			expect(user?.firstname).toBe(signupPostBody.firstname);
+			expect(user?.lastname).toBe(signupPostBody.lastname);
+			expect(user?.id).toBeDefined();
+		}, 10000);
 	});
 });
