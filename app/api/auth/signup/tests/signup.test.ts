@@ -1,14 +1,14 @@
 /* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
-import { doesDatabaseTableExist } from '../../../../testing/containers/database/utility';
-import Database from '../../../../db';
-import PostgresContainer, {
+import { doesDatabaseTableExist } from '@/app/testing/database/utility';
+import Database from '@/app/db';
+import {
+	APIContainer,
+	FlywayContainer,
+	PostgresContainer,
+	StartedAPIContainer,
 	StartedPGContainer
-} from '@/app/testing/containers/models/postgres-container';
-import HasuraContainer, {
-	StartedHasuraContainer
-} from '@/app/testing/containers/models/hasura-container';
-import APIContainer, { StartedAPIContainer } from '@/app/testing/containers/models/api-container';
+} from '@/app/testing/models';
 import { Network, StartedNetwork, Wait } from 'testcontainers';
 import axios from 'axios';
 
@@ -32,31 +32,23 @@ describe('Signup API', () => {
 	let network: StartedNetwork;
 	let postgresContainer: StartedPGContainer;
 	let apiContainer: StartedAPIContainer;
-	let hasuraContainer: StartedHasuraContainer;
 
 	beforeAll(async () => {
 		/*
 			Setup the Postgres container
-			Setup the Hasura container (including the database migrations)
+			Setup the Database migrations via Flyway
 		*/
 
 		network = await new Network().start();
 		const pgContainer = await new PostgresContainer().configure(network);
 		postgresContainer = await pgContainer.withWaitStrategy(waitForPostgresDBLog).start();
 
-		hasuraContainer = await new HasuraContainer()
-			.configure(network, { container: 8080, host: 8080 })
-			.withEnvironment({
-				HASURA_GRAPHQL_DATABASE_URL: postgresContainer.internalNetworkDbUri,
-				HASURA_GRAPHQL_ENABLE_CONSOLE: 'true',
-				HASURA_GRAPHQL_ADMIN_SECRET: 'admin'
-			})
-			.start();
+		await new FlywayContainer().configure(network).start();
 
 		apiContainer = await new APIContainer()
 			.configure(network, { container: 3000, host: 3000 })
 			.start();
-	}, 97000);
+	}, 80000);
 
 	describe('Database table existence checks', () => {
 		it('figure table should NOT exist', async () => {

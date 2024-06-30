@@ -18,24 +18,6 @@ services:
     ports:
       - '5432:5432'
 
-  hasura:
-    image: hasura/graphql-engine:v2.40.1.cli-migrations-v3
-    container_name: hasura-test
-    environment:
-      HASURA_GRAPHQL_DATABASE_URL: postgres://kf_db_user:kf_db_password@pg:5432/kasefile
-      HASURA_GRAPHQL_ENABLE_CONSOLE: true
-      HASURA_GRAPHQL_ADMIN_SECRET: admin
-    volumes:
-      - ./app/testing/containers/volumes/hasura/migrations:/hasura-migrations
-      - ./app/testing/containers/volumes/hasura/metadata:/hasura-metadata
-    restart: unless-stopped
-    ports:
-      - '8080:8080'
-    # networks:
-    #   - app-net
-    depends_on:
-      - pg
-
   api:
     image: node:18
     container_name: api

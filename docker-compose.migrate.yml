@@ -1,0 +1,34 @@
+version: '3'
+
+volumes:
+  db-data:
+
+services:
+  pg:
+    image: postgres:13.3-alpine
+    container_name: pg
+    environment:
+      POSTGRES_PASSWORD: ${NEXT_SERVER_DB_PASS}
+      POSTGRES_USER: ${NEXT_SERVER_DB_USER}
+      POSTGRES_DB: ${NEXT_SERVER_DB_NAME}
+    restart: unless-stopped
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - '${NEXT_SERVER_DB_PORT}:${NEXT_SERVER_DB_PORT}'
+
+  flyway:
+    image: redgate/flyway
+    container_name: flyway
+    environment:
+      DB_HOST: ${NEXT_SERVER_DB_HOST}
+      DB_PORT: ${NEXT_SERVER_DB_PORT}
+      DB_NAME: ${NEXT_SERVER_DB_NAME}
+      DB_USER: ${NEXT_SERVER_DB_USER}
+      DB_PASS: ${NEXT_SERVER_DB_PASS}
+    command: migrate -user=${NEXT_SERVER_DB_USER} -password=${NEXT_SERVER_DB_PASS} -connectRetries=10
+    volumes:
+      - ./database/conf:/flyway/conf
+      - ./database/migrations:/flyway/sql
+    depends_on:
+      - pg
