@@ -47,5 +47,3 @@ services:
       - ./package.json:/app/kf-backend/package.json
       - ./tsconfig.json:/app/kf-backend/tsconfig.json
       - ./.env:/app/kf-backend/.env
-    depends_on:
-      - hasura
