@@ -40,3 +40,6 @@ next-env.d.ts
 
 #ignore database data
 database/data/*
+
+#ignore every api/samples folder or subfolder
+app/api/**/samples/

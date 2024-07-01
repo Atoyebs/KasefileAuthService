@@ -28,11 +28,21 @@ const waitForPostgresDBLog = Wait.forLogMessage(
 	2
 );
 
+const testTimeout = 12000;
+
 describe('Auth APIs', () => {
 	let network: StartedNetwork;
 	let postgresContainer: StartedPGContainer;
 	let apiContainer: StartedAPIContainer;
 	let apiBaseUrl: string;
+
+	const signupPostBody = {
+		username: 'iTest',
+		email: 'test.user@hotmail.com',
+		password: 'testing123',
+		firstname: 'Test',
+		lastname: 'User'
+	};
 
 	beforeAll(async () => {
 		/*
@@ -51,7 +61,7 @@ describe('Auth APIs', () => {
 			.start();
 
 		apiBaseUrl = `http://${apiContainer.getHost()}:${apiContainer.getFirstMappedPort()}`;
-	}, 70000);
+	}, 95000);
 
 	describe('Database table existence checks', () => {
 		it('figure table should NOT exist', async () => {
@@ -80,88 +90,223 @@ describe('Auth APIs', () => {
 	});
 
 	describe('Signup endpoint', () => {
-		const signupPostBody = {
+		it(
+			'route should return true with simple message',
+			async () => {
+				const testAuthRoute = `${apiBaseUrl}/api/auth`;
+				try {
+					const { data } = await axios.post(`${testAuthRoute}`);
+					expect(data).toEqual({
+						success: true,
+						message: "You've hit the auth route!"
+					});
+				} catch (error) {
+					throw error;
+				}
+			},
+			testTimeout
+		);
+
+		it(
+			'route should return 400 error when username fails validation',
+			async () => {
+				try {
+					await axios.post(`${apiBaseUrl}/api/auth/signup`, {
+						...signupPostBody,
+						username: 'te'
+					});
+				} catch (error: any) {
+					expect(error?.response?.status).toEqual(400);
+					expect(error?.response?.data).toEqual({
+						success: false,
+						message: 'username: String must contain at least 3 character(s)'
+					});
+				}
+			},
+			testTimeout
+		);
+
+		it(
+			'route should return 400 error when email fails validation',
+			async () => {
+				try {
+					await axios.post(`${apiBaseUrl}/api/auth/signup`, {
+						...signupPostBody,
+						email: 'incorrect-email.com'
+					});
+				} catch (error: any) {
+					expect(error?.response?.status).toEqual(400);
+					expect(error?.response?.data).toEqual({
+						success: false,
+						message: 'email: Invalid email'
+					});
+				}
+			},
+			testTimeout
+		);
+
+		it(
+			'route should successfully register user',
+			async () => {
+				const { data, status, headers } = await axios.post(
+					`${apiBaseUrl}/api/auth/signup`,
+					signupPostBody
+				);
+				expect(data.success).toBeTruthy();
+				expect(data.message).toBe(
+					`User ${signupPostBody.firstname} ${signupPostBody.lastname} has been Successfully Signed Up!`
+				);
+				expect(status).toBe(200);
+				const setCookieHeader = headers['set-cookie'];
+				expect(setCookieHeader).toBeDefined();
+			},
+			testTimeout
+		);
+
+		it(
+			'signed up user should be found within database user table',
+			async () => {
+				const db = new Database({
+					connectionString: postgresContainer.getConnectionUri()
+				});
+				const findUserFromUsernameOrEmailQuery = {
+					text: `SELECT * FROM "user" WHERE username = $1 OR email = $1 LIMIT 1;`,
+					values: [signupPostBody.email]
+				};
+				const pool = await db.connect();
+
+				const user = (await pool.query(findUserFromUsernameOrEmailQuery))?.rows[0];
+				await pool.release();
+				expect(user?.username).toBe(signupPostBody.username);
+				expect(user?.email).toBe(signupPostBody.email);
+				expect(user?.firstname).toBe(signupPostBody.firstname);
+				expect(user?.lastname).toBe(signupPostBody.lastname);
+				expect(user?.id).toBeDefined();
+			},
+			testTimeout
+		);
+	});
+
+	describe('Login endpoint', () => {
+		const loginPostBody = {
 			username: 'iTest',
-			email: 'test.user@hotmail.com',
-			password: 'testing123',
-			firstname: 'Test',
-			lastname: 'User'
+			password: 'testing123'
 		};
 
-		it('route should return true with simple message', async () => {
-			const testAuthRoute = `${apiBaseUrl}/api/auth`;
-			try {
-				const { data } = await axios.post(`${testAuthRoute}`);
-				expect(data).toEqual({
-					success: true,
-					message: "You've hit the auth route!"
-				});
-			} catch (error) {
-				throw error;
-			}
-		}, 15000);
+		it(
+			'route should return 400 error when username or email property does not exist in request body',
+			async () => {
+				try {
+					await axios.post(`${apiBaseUrl}/api/auth/login`, {
+						treat: 'as',
+						password: 'fix'
+					});
+				} catch (error: any) {
+					expect(error?.response?.status).toEqual(400);
+					expect(error?.response?.data).toEqual({
+						success: false,
+						message: 'undefined: Invalid input'
+					});
+				}
+			},
+			testTimeout
+		);
 
-		it('route should return 400 error when username fails validation', async () => {
+		it('route should return 400 error when password property does not exist in request body', async () => {
 			try {
-				await axios.post(`${apiBaseUrl}/api/auth/signup`, {
-					...signupPostBody,
-					username: 'te'
+				await axios.post(`${apiBaseUrl}/api/auth/login`, {
+					email: 'as',
+					england: 'island'
 				});
 			} catch (error: any) {
 				expect(error?.response?.status).toEqual(400);
 				expect(error?.response?.data).toEqual({
 					success: false,
-					message: 'username: String must contain at least 3 character(s)'
+					message: 'undefined: Invalid input'
 				});
 			}
-		}, 15000);
+		});
 
-		it('route should return 400 error when email fails validation', async () => {
+		it('route should return 401 error when user does not exist OR is wrong user', async () => {
 			try {
-				await axios.post(`${apiBaseUrl}/api/auth/signup`, {
-					...signupPostBody,
-					email: 'incorrect-email.com'
+				await axios.post(`${apiBaseUrl}/api/auth/login`, {
+					username: 'finalsay',
+					password: 'england'
 				});
 			} catch (error: any) {
-				expect(error?.response?.status).toEqual(400);
+				expect(error?.response?.status).toEqual(401);
 				expect(error?.response?.data).toEqual({
 					success: false,
-					message: 'email: Invalid email'
+					message: `Error! Incorrect credentials provided`
 				});
 			}
-		}, 15000);
+		});
 
-		it('route should successfully register user', async () => {
-			const { data, status, headers } = await axios.post(
-				`${apiBaseUrl}/api/auth/signup`,
-				signupPostBody
-			);
-			expect(data.success).toBeTruthy();
-			expect(data.message).toBe(
-				`User ${signupPostBody.firstname} ${signupPostBody.lastname} has been Successfully Signed Up!`
-			);
-			expect(status).toBe(200);
-			const setCookieHeader = headers['set-cookie'];
-			expect(setCookieHeader).toBeDefined();
-		}, 10000);
+		it('route should return 401 invalid credentials error when password is incorrect', async () => {
+			try {
+				await axios.post(`${apiBaseUrl}/api/auth/login`, {
+					username: signupPostBody.username,
+					password: 'wonderboyzzzzzz'
+				});
+			} catch (error: any) {
+				expect(error?.response?.status).toEqual(401);
+				expect(error?.response?.data).toEqual({
+					success: false,
+					message: `Error! Incorrect credentials provided`
+				});
+			}
+		});
 
-		it('signed up user should be found within database user table', async () => {
-			const db = new Database({
-				connectionString: postgresContainer.getConnectionUri()
-			});
-			const findUserFromUsernameOrEmailQuery = {
-				text: `SELECT * FROM "user" WHERE username = $1 OR email = $1 LIMIT 1;`,
-				values: [signupPostBody.email]
-			};
-			const pool = await db.connect();
+		it('route should return 401 invalid credentials error when username is incorrect', async () => {
+			try {
+				await axios.post(`${apiBaseUrl}/api/auth/login`, {
+					username: `whoereverYouGo`,
+					password: signupPostBody.password
+				});
+			} catch (error: any) {
+				expect(error?.response?.status).toEqual(401);
+				expect(error?.response?.data).toEqual({
+					success: false,
+					message: `Error! Incorrect credentials provided`
+				});
+			}
+		});
 
-			const user = (await pool.query(findUserFromUsernameOrEmailQuery))?.rows[0];
-			await pool.release();
-			expect(user?.username).toBe(signupPostBody.username);
-			expect(user?.email).toBe(signupPostBody.email);
-			expect(user?.firstname).toBe(signupPostBody.firstname);
-			expect(user?.lastname).toBe(signupPostBody.lastname);
-			expect(user?.id).toBeDefined();
-		}, 10000);
+		it('route should return 401 invalid credentials error when email is incorrect', async () => {
+			try {
+				await axios.post(`${apiBaseUrl}/api/auth/login`, {
+					username: `whoereverYouGo@gmail.com`,
+					password: signupPostBody.password
+				});
+			} catch (error: any) {
+				expect(error?.response?.status).toEqual(401);
+				expect(error?.response?.data).toEqual({
+					success: false,
+					message: `Error! Incorrect credentials provided`
+				});
+			}
+		});
+
+		it('route should return redirect when username and password combination are correct', async () => {
+			try {
+				await axios.post(
+					`${apiBaseUrl}/api/auth/login`,
+					{
+						username: signupPostBody.username,
+						password: signupPostBody.password
+					},
+					{
+						maxRedirects: 0
+					}
+				);
+			} catch (error: any) {
+				console.log(error?.response);
+				const status = error?.response.status;
+				expect(error?.response?.status).toBeGreaterThanOrEqual(status);
+				expect(error?.response?.status).toBeLessThanOrEqual(status);
+				expect(error?.response?.statusText.toLowerCase().includes('redirect')).toBeTruthy();
+				expect(error?.response?.headers?.location).toMatch(/\/user$/);
+			}
+		});
 	});
 });

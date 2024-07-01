@@ -64,11 +64,11 @@ export async function POST(req: NextRequest) {
 			{ status: 200 }
 		);
 	} catch (error) {
-		console.error(`error happened in signup route ==> `, error);
 		return Response.json(
 			{
 				success: false,
-				message: 'Internal Server Error Occurred'
+				message: 'Internal Server Error Occurred',
+				error
 			},
 			{ status: 500 }
 		);
