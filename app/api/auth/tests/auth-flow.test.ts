@@ -275,7 +275,7 @@ describe('Auth APIs', () => {
 		it('route should return 401 invalid credentials error when email is incorrect', async () => {
 			try {
 				await axios.post(`${apiBaseUrl}/api/auth/login`, {
-					username: `whoereverYouGo@gmail.com`,
+					email: `whoereverYouGo@gmail.com`,
 					password: signupPostBody.password
 				});
 			} catch (error: any) {
@@ -300,7 +300,27 @@ describe('Auth APIs', () => {
 					}
 				);
 			} catch (error: any) {
-				console.log(error?.response);
+				const status = error?.response.status;
+				expect(error?.response?.status).toBeGreaterThanOrEqual(status);
+				expect(error?.response?.status).toBeLessThanOrEqual(status);
+				expect(error?.response?.statusText.toLowerCase().includes('redirect')).toBeTruthy();
+				expect(error?.response?.headers?.location).toMatch(/\/user$/);
+			}
+		});
+
+		it('route should return redirect when email and password combination are correct', async () => {
+			try {
+				await axios.post(
+					`${apiBaseUrl}/api/auth/login`,
+					{
+						email: signupPostBody.email,
+						password: signupPostBody.password
+					},
+					{
+						maxRedirects: 0
+					}
+				);
+			} catch (error: any) {
 				const status = error?.response.status;
 				expect(error?.response?.status).toBeGreaterThanOrEqual(status);
 				expect(error?.response?.status).toBeLessThanOrEqual(status);
